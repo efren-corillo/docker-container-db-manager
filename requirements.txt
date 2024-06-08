@@ -5,3 +5,4 @@
 # gzip
 # shutil
 python-dotenv
+pyinstaller

@@ -18,7 +18,7 @@ show_loading() {
 # Function to export the database
 export_db() {
   echo "Exporting database..."
-  (docker exec -i pnymanager-mysql-1 bash -c 'mysqldump --no-tablespaces -hmysql -u ${DB_USERNAME} -p${DB_PASSWORD} pnymanager' | gzip >${DB_FILENAME}.sql.gz) & # Run the command in the background
+  (docker exec -i pnymanager-mysql-1 bash -c "mysqldump --no-tablespaces -hmysql -u ${DB_USERNAME} -p${DB_PASSWORD} pnymanager" | gzip >${DB_FILENAME}.sql.gz) & # Run the command in the background
   pid=$!                                                                                                                                                         # Get the process ID
   show_loading $pid                                                                                                                                              # Show the loading effect while the command is running
 
@@ -47,7 +47,7 @@ export_db() {
 import_db() {
   if [ -f ${DB_FILENAME}.sql ]; then
     echo "Dropping existing database..."
-    docker exec -i pnymanager-mysql-1 bash -c 'mysql -u ${DB_USERNAME} -p${DB_PASSWORD} -P ${DB_PORT} -h ${DB_HOST} -e "DROP DATABASE IF EXISTS pnymanager; CREATE DATABASE pnymanager;"'
+    docker exec -i pnymanager-mysql-1 bash -c "mysql -u ${DB_USERNAME} -p${DB_PASSWORD} -P ${DB_PORT} -h ${DB_HOST} -e \"DROP DATABASE IF EXISTS ${DB_DATABASE}; CREATE DATABASE ${DB_DATABASE};\""
     wait $pid
 
     echo "Copying ${DB_FILENAME}.sql to the container..."
@@ -82,7 +82,7 @@ import_db() {
 # Function to import the database
 run_import_database() {
   echo "Importing database..."
-  docker exec -i pnymanager-mysql-1 bash -c 'mysql -u ${DB_USERNAME} -p${DB_PASSWORD} -P ${DB_PORT} -h ${DB_HOST} pnymanager < /tmp/${DB_FILENAME}.sql' & # Run the command in the background
+  docker exec -i pnymanager-mysql-1 bash -c "mysql -u ${DB_USERNAME} -p${DB_PASSWORD} -P ${DB_PORT} -h ${DB_HOST} pnymanager < /tmp/${DB_FILENAME}.sql" & # Run the command in the background
   pid=$!                                                                                                                     # Get the process ID
   show_loading $pid                                                                                                          # Show the loading effect while the command is running
   wait $pid
@@ -112,7 +112,7 @@ run_elastic_index() {
   echo "Running 'php artisan elastic:index'..."
   docker exec -i pnymanager-website-1 bash -c 'php artisan elastic:index' & # Run the command in the background
   pid=$!                                                                    # Get the process ID
-  # show_loading $pid # Show the loading effect while the command is running
+
   wait $pid
   echo "'php artisan elastic:index' completed."
 }
