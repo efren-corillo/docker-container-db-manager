@@ -18,45 +18,45 @@ show_loading() {
 # Function to export the database
 export_db() {
   echo "Exporting database..."
-  (docker exec -i pnymanager-mysql-1 bash -c 'mysqldump --no-tablespaces -hmysql -u pnymanager -pqwerty pnymanager' | gzip >dump.sql.gz) & # Run the command in the background
-  pid=$!                                                                                                                                   # Get the process ID
-  show_loading $pid                                                                                                                        # Show the loading effect while the command is running
+  (docker exec -i pnymanager-mysql-1 bash -c 'mysqldump --no-tablespaces -hmysql -u ${DB_USERNAME} -p${DB_PASSWORD} pnymanager' | gzip >${DB_FILENAME}.sql.gz) & # Run the command in the background
+  pid=$!                                                                                                                                                         # Get the process ID
+  show_loading $pid                                                                                                                                              # Show the loading effect while the command is running
 
-  # Wait until dump.sql.gz is non-zero in size
-  while [ ! -s dump.sql.gz ]; do
+  # Wait until ${DB_FILENAME}.sql.gz is non-zero in size
+  while [ ! -s ${DB_FILENAME}.sql.gz ]; do
     sleep 1
   done
 
-  # Extract dump.sql.gz to dump.sql
-  cp dump.sql.gz temp_dump.sql.gz
-  gzip -d dump.sql.gz
-  echo "Database exported and saved as dump.sql"
+  # Extract ${DB_FILENAME}.sql.gz to ${DB_FILENAME}.sql
+  cp ${DB_FILENAME}.sql.gz ${DB_FILENAME}.sql.gz
+  gzip -d ${DB_FILENAME}.sql.gz
+  echo "Database exported and saved as ${DB_FILENAME}.sql"
 
-  # Ask if the user wants to delete the temp_dump.sql.gz file
-  read -p "Do you want to delete the temp_dump.sql.gz file? (yes/no): " delete_gz
+  # Ask if the user wants to delete the ${DB_FILENAME}.sql.gz file
+  read -p "Do you want to delete the ${DB_FILENAME}.sql.gz file? (yes/no): " delete_gz
   if [[ $delete_gz == "yes" ]]; then
-    rm temp_dump.sql.gz
-    echo "temp_dump.sql.gz file deleted."
+    rm ${DB_FILENAME}.sql.gz
+    echo "${DB_FILENAME}.sql.gz file deleted."
   else
-    mv temp_dump.sql.gz dump.sql.gz
-    echo "dump.sql.gz file kept."
+    mv ${DB_FILENAME}.sql.gz ${DB_FILENAME}.sql.gz
+    echo "${DB_FILENAME}.sql.gz file kept."
   fi
 }
 
 # Function to import the database
 import_db() {
-  if [ -f dump.sql ]; then
+  if [ -f ${DB_FILENAME}.sql ]; then
     echo "Dropping existing database..."
-    docker exec -i pnymanager-mysql-1 bash -c 'mysql -u pnymanager -pqwerty -P 3306 -h 127.0.0.1 -e "DROP DATABASE IF EXISTS pnymanager; CREATE DATABASE pnymanager;"'
+    docker exec -i pnymanager-mysql-1 bash -c 'mysql -u ${DB_USERNAME} -p${DB_PASSWORD} -P ${DB_PORT} -h ${DB_HOST} -e "DROP DATABASE IF EXISTS pnymanager; CREATE DATABASE pnymanager;"'
     wait $pid
 
-    echo "Copying dump.sql to the container..."
-    docker cp dump.sql pnymanager-mysql-1:/tmp/dump.sql
+    echo "Copying ${DB_FILENAME}.sql to the container..."
+    docker cp ${DB_FILENAME}.sql pnymanager-mysql-1:/tmp/${DB_FILENAME}.sql
     sleep 2 # Wait for 5 seconds to ensure the file is ready
 
     echo "Verifying file size..."
-    local_size=$(stat -c%s dump.sql)
-    remote_size=$(docker exec pnymanager-mysql-1 stat -c%s /tmp/dump.sql)
+    local_size=$(stat -c%s ${DB_FILENAME}.sql)
+    remote_size=$(docker exec pnymanager-mysql-1 stat -c%s /tmp/${DB_FILENAME}.sql)
 
     if [ "$local_size" -eq "$remote_size" ]; then
       echo "File successfully copied."
@@ -75,18 +75,18 @@ import_db() {
       echo "Error: File size mismatch. Local size: $local_size bytes, Remote size: $remote_size bytes."
     fi
   else
-    echo "Error: dump.sql file does not exist. Please make sure the dump.sql file is present in the current directory."
+    echo "Error: ${DB_FILENAME}.sql file does not exist. Please make sure the ${DB_FILENAME}.sql file is present in the current directory."
   fi
 }
 
 # Function to import the database
 run_import_database() {
   echo "Importing database..."
-  docker exec -i pnymanager-mysql-1 bash -c 'mysql -u pnymanager -pqwerty -P 3306 -h 127.0.0.1 pnymanager < /tmp/dump.sql' & # Run the command in the background
+  docker exec -i pnymanager-mysql-1 bash -c 'mysql -u ${DB_USERNAME} -p${DB_PASSWORD} -P ${DB_PORT} -h ${DB_HOST} pnymanager < /tmp/${DB_FILENAME}.sql' & # Run the command in the background
   pid=$!                                                                                                                     # Get the process ID
   show_loading $pid                                                                                                          # Show the loading effect while the command is running
   wait $pid
-  echo "Database imported from dump.sql"
+  echo "Database imported from ${DB_FILENAME}.sql"
 }
 
 # Function to update user passwords

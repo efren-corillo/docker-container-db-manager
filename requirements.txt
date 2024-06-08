@@ -1,0 +1,7 @@
+# native python support
+# subprocess
+# os
+# time
+# gzip
+# shutil
+python-dotenv
