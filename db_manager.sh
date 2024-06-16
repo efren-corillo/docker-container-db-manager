@@ -1,4 +1,11 @@
 #!/bin/bash
+# Source the .env file
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | xargs)
+else
+  echo "Error: .env file not found!"
+  exit 1
+fi
 
 # Function to show loading effect
 show_loading() {
@@ -14,6 +21,20 @@ show_loading() {
   done
   printf "    \b\b\b\b"
 }
+
+# test_Yes_No() {
+#  run_test=$(yes_or_no "Run test yes or no? (Y/n): ")
+#  if [ "$run_test" = "yes" ]; then
+#    echo "You chose Yes"
+#
+#    run_again=$(yes_or_no "Run the test again? (Y/n): ")
+#    if [ "$run_again" = "yes" ]; then
+#      test_Yes_No
+#    fi
+#  else
+#    echo "You chose No"
+#  fi
+# }
 
 # Function to export the database
 export_db() {
@@ -33,7 +54,8 @@ export_db() {
   echo "Database exported and saved as ${DB_FILENAME}.sql"
 
   # Ask if the user wants to delete the ${DB_FILENAME}.sql.gz file
-  read -p "Do you want to delete the ${DB_FILENAME}.sql.gz file? (yes/no): " delete_gz
+  read -p
+   delete_gz=$(yes_or_no "Do you want to delete the ${DB_FILENAME}.sql.gz file? (Y/n): ")
   if [[ $delete_gz == "yes" ]]; then
     rm ${DB_FILENAME}.sql.gz
     echo "${DB_FILENAME}.sql.gz file deleted."
@@ -45,7 +67,7 @@ export_db() {
 
 # Function to import the database
 import_db() {
-  if [ -f ${DB_FILENAME}.sql ]; then
+  if [ -f "${DB_FILENAME}.sql" ]; then
     echo "Dropping existing database..."
     docker exec -i pnymanager-mysql-1 bash -c "mysql -u ${DB_USERNAME} -p${DB_PASSWORD} -P ${DB_PORT} -h ${DB_HOST} -e \"DROP DATABASE IF EXISTS ${DB_DATABASE}; CREATE DATABASE ${DB_DATABASE};\""
     wait $pid
@@ -63,7 +85,7 @@ import_db() {
 
       run_import_database
 
-      read -p "Do you want to run elastic:index on pnymanager-website-1? (yes/no): " run_elastic
+      run_elastic=$(yes_or_no "Do you want to run elastic:index on pnymanager-website-1? (yes/no): ")
       if [[ $run_elastic == "yes" ]]; then
         run_elastic_index
       else
@@ -91,7 +113,7 @@ run_import_database() {
 
 # Function to update user passwords
 update_passwords() {
-  read -p "Do you want to change every password in the Users table? (yes/no): " change_passwords
+   change_passwords=$(yes_or_no "Do you want to change every password in the Users table? (yes/no): ")
   if [[ $change_passwords == "yes" ]]; then
     read -s -p "Enter the new password: " new_password
     echo
@@ -115,6 +137,26 @@ run_elastic_index() {
 
   wait $pid
   echo "'php artisan elastic:index' completed."
+}
+
+yes_or_no () {
+  local prompt_message="$1"
+  while true; do
+    read -p "$prompt_message" input
+    case "$input" in
+      [yY][eE][sS]|[yY])
+        echo "yes"
+        return 0
+        ;;
+      [nN][oO]|[nN])
+        echo "no"
+        return 0
+        ;;
+      *)
+        echo "Invalid Input, Please enter (Y/n)."
+        ;;
+    esac
+  done
 }
 
 # Main script
